@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Misión Minikube: laboratorio interactivo de Kubernetes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1020;--panel:#121a33;--panel2:#18224a;--line:#26335f;--text:#e8ecfa;--muted:#9aa6cf;--k8s:#326ce5;--k8s2:#6f9bff;--ok:#3ddc97;--warn:#ffb84d;--bad:#ff6b6b;--code:#070b18}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.5}
+.mono,code,pre{font-family:'JetBrains Mono',ui-monospace,monospace}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--line);background:#0a0f20;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;font-weight:800}
+.stats{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+.chip b{color:var(--k8s2)}
+input.name{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;width:140px}
+button{font-family:inherit;cursor:pointer}
+.btn{background:var(--k8s);color:#fff;border:0;border-radius:9px;padding:8px 13px;font-weight:600;font-size:13px}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:default}
+.wrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;padding:16px 22px;max-width:1400px;margin:0 auto}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kick{color:var(--k8s2);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.dots{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.dot{width:22px;height:22px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);font-size:11px;display:grid;place-items:center;color:var(--muted);font-weight:700}
+.dot.on{background:var(--k8s);color:#fff;border-color:var(--k8s)}
+.dot.ok{background:var(--ok);color:#052;border-color:var(--ok)}
+.dot.sk{background:var(--panel);color:var(--muted);text-decoration:line-through}
+#mt{font-size:20px;font-weight:800;margin:2px 0 4px}
+#md{color:var(--muted);margin:0 0 10px;font-size:15px}
+.hint{background:#241f10;border-left:3px solid var(--warn);padding:7px 11px;border-radius:0 8px 8px 0;margin:6px 0;font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.term{margin-top:14px;background:var(--code);border:1px solid var(--line);border-radius:12px;height:430px;overflow:auto;padding:12px;font-size:13px;line-height:1.5;color:#cfe1ff}
+.term div{white-space:pre-wrap;word-break:break-word}
+.term .p{color:var(--ok);font-weight:700}.term .e{color:var(--bad)}.term .m{color:var(--muted)}.term .w{color:var(--warn)}.term .sys{color:#ff9bd0}
+.inline{display:flex;gap:8px;align-items:center;margin-top:6px}
+.inline span{color:var(--ok);font-weight:700}
+.inline input{flex:1;background:transparent;border:0;outline:0;color:#fff;font:inherit;caret-color:var(--ok)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600}
+.tab.on{background:var(--k8s);color:#fff;border-color:var(--k8s)}
+.pane{display:none}.pane.on{display:block}
+.nodes{display:grid;gap:10px}
+.node{border:2px solid var(--line);border-radius:12px;padding:10px;background:#0e1630}
+.node.up{border-color:var(--k8s)}
+.node.down{opacity:.5;border-style:dashed}
+.node h4{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between}
+.pods{display:flex;gap:6px;flex-wrap:wrap;min-height:46px}
+.pod{width:78px;border-radius:8px;padding:5px 4px;text-align:center;font-size:10px;line-height:1.25;border:1px solid var(--line);background:var(--panel2);transition:.3s}
+.pod b{display:block;font-size:11px}
+.pod.Running{background:#0f3a2a;border-color:var(--ok)}
+.pod.ContainerCreating{background:#3a3210;border-color:var(--warn);animation:pl 1s infinite}
+.pod.ErrImagePull,.pod.ImagePullBackOff{background:#3a1717;border-color:var(--bad)}
+.pod.Terminating{opacity:.35;border-style:dashed}
+.pod.Stopped{opacity:.4}
+@keyframes pl{50%{opacity:.55}}
+.pill{display:inline-block;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:2px 10px;margin:3px 4px 0 0}
+.pill.g{color:var(--ok)}
+.sec{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 4px}
+textarea{width:100%;height:380px;background:var(--code);color:#cfe1ff;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;line-height:1.5;resize:vertical}
+.cs h4{margin:14px 0 6px;font-size:13px;color:var(--k8s2)}
+.cmd{display:block;width:100%;text-align:left;background:var(--code);border:1px solid var(--line);color:#cfe1ff;border-radius:8px;padding:6px 10px;margin:4px 0;font-size:12.5px}
+.cmd:hover{border-color:var(--k8s2)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(30px);background:var(--ok);color:#052;padding:10px 20px;border-radius:12px;font-weight:700;opacity:0;transition:.4s;z-index:9;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+#final{display:none;margin:16px 22px;max-width:1356px}
+#final.on{display:block}
+.big{font-size:44px;font-weight:800;color:var(--ok)}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+
+.wrap{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)!important}
+.bench{display:grid;grid-template-columns:262px minmax(0,1fr);gap:14px;margin-top:14px;align-items:start}
+@media(max-width:1100px){.bench{grid-template-columns:1fr}}
+.pal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;max-height:700px;overflow:auto;--sb:var(--panel)}
+.pal h4{margin:12px 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.pal h4:first-child{margin-top:0}
+.pal .blk{margin-bottom:10px;cursor:grab}
+.pal .blk input,.pal .blk select{pointer-events:none}
+.ws{padding:12px;--sb:var(--panel)}
+.wsbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.btn.go{background:#2fb36d}
+.script{min-height:470px;border:2px dashed var(--line);border-radius:12px;padding:14px;background:#0e1630;position:relative}
+.script.over{border-color:var(--k8s2)}
+#dropHint{color:var(--muted);text-align:center;padding:60px 10px;font-size:15px;pointer-events:none}
+.blk{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;border-radius:7px;color:#fff;font-weight:700;font-size:13px;line-height:1.2;user-select:none;-webkit-user-select:none;touch-action:none;box-shadow:inset 0 -3px 0 rgba(0,0,0,.2);min-height:42px;width:fit-content;max-width:100%}
+.blk::after{content:'';position:absolute;left:16px;bottom:-6px;width:30px;height:7px;background:inherit;border-radius:0 0 7px 7px;z-index:2;filter:brightness(.92)}
+#stack .blk{margin-bottom:0}
+.blk input,.blk select{border:0;border-radius:13px;padding:3px 9px;font:inherit;font-weight:600;font-size:12.5px;color:#1b2340;background:#fff;max-width:170px;height:26px}
+.blk input[type=number]{padding:3px 4px 3px 8px}
+.blk .bt{margin-left:auto;display:flex;gap:4px}
+.blk .mini{background:rgba(0,0,0,.25);color:#fff;border:0;border-radius:6px;width:24px;height:24px;font-size:11px;padding:0}
+.blk .mini:hover{background:rgba(0,0,0,.45)}
+.c-c{background:#4c97ff}.c-d{background:#9966ff}.c-g{background:#e6930a}.c-a{background:#3fa83f}.c-w{background:#c99a00}
+.blk.cur{outline:3px solid #fff700;outline-offset:1px}
+.blk.ok{outline:3px solid var(--ok);outline-offset:1px}
+.blk.bad{outline:3px solid var(--bad);outline-offset:1px}
+.blk.ghost{position:fixed;z-index:60;pointer-events:none;opacity:.92;box-shadow:0 10px 24px rgba(0,0,0,.55);transform:rotate(1.5deg)}
+.ph{height:42px;border:2px dashed var(--k8s2);border-radius:7px;margin-bottom:0;width:100%;background:rgba(111,155,255,.08)}
+.right{display:flex;flex-direction:column;gap:14px}
+.right .term{margin-top:0;height:330px}
+.xp{margin-top:6px;border-top:1px solid #1d2850;padding-top:6px}
+.xlbl{color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>☸️ Misión Minikube</h1>
+  <div class="stats">
+    <input class="name" id="player" placeholder="Jugador/a" maxlength="20">
+    <span class="chip">Misión <b id="sM">1</b>/11</span>
+    <span class="chip">Puntos <b id="sP">0</b></span>
+    <span class="chip">Tiempo <b id="sT" class="mono">00:00</b></span>
+    <button class="btn ghost" id="reset">↺ Reiniciar todo</button>
+  </div>
+</header>
+
+<div id="final" class="card"></div>
+
+<div class="wrap">
+  <div>
+    <div class="card">
+      <div class="kick">Tu misión actual</div>
+      <div class="dots" id="dots"></div>
+      <div id="mt"></div>
+      <p id="md"></p>
+      <div id="hints"></div>
+      <div class="row">
+        <button class="btn ghost" id="bHint">💡 Pista (−20 pts)</button>
+        <button class="btn ghost" id="bSkip">⏭ Saltar misión</button>
+      </div>
+    </div>
+    <div class="bench">
+      <div class="pal" id="pal"></div>
+      <div class="card ws">
+        <div class="wsbar">
+          <button class="btn go" id="bRun">▶ Ejecutar bloques</button>
+          <button class="btn ghost" id="bStop">⏹ Detener</button>
+          <button class="btn ghost" id="bEx">📋 Cargar ejemplo</button>
+          <button class="btn ghost" id="bClr">🗑 Limpiar</button>
+        </div>
+        <div class="script" id="script"><div id="stack"></div><div id="dropHint">👈 Arrastra bloques desde la paleta (o haz clic en uno) y apílalos aquí.<br>Se ejecutan de arriba hacia abajo y se detienen si uno falla, como un pipeline de CD.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab on" data-p="pc">Clúster en vivo</button>
+        <button class="tab" data-p="py">web.yaml</button>
+      </div>
+      <div class="pane on" id="pc"><div id="cluster"></div></div>
+      <div class="pane" id="py">
+        <p style="margin:0 0 8px;color:var(--muted);font-size:14px">Edita el archivo y aplícalo con el bloque <b>aplicar web.yaml</b>. Cambia réplicas, imagen o tipo de Service y observa qué pasa.</p>
+        <textarea id="yaml" class="mono" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="term mono" id="term" tabindex="-1">
+      <div class="m">Salida: cada bloque muestra aquí el comando real de minikube/kubectl que ejecuta.</div>
+      <div id="out"></div>
+      <div class="inline xp"><span>$</span><input id="inp" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="modo experto (opcional): escribe un comando y Enter" aria-label="Comando"></div>
+    </div>
+  </div>
+</div>
+<datalist id="dl-dep"><option value="web"></datalist>
+<datalist id="dl-img"><option value="nginx:1.27"><option value="nginx:1.28"><option value="nginx:1.29"><option value="nginx:alpine"><option value="nginx:1.99"><option value="nginx:latest"><option value="httpd:2.4"><option value="redis:7"><option value="busybox"><option value="ngnix:1.27"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const r5=()=>Math.random().toString(36).slice(2,7);
+const hash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36).padStart(7,'0').slice(0,9)};
+
+/* ---------- estado ---------- */
+const S0=()=>({running:false,ever:false,since:0,driver:'',nodes:1,addons:new Set(['default-storageclass','storage-provisioner']),deps:{},svcs:{},did:{},tunnel:false});
+let S=S0();
+const REPOS={nginx:['latest','alpine','stable','1.25','1.26','1.27','1.28','1.29'],httpd:null,redis:null,busybox:null,node:null,python:null,postgres:null,mysql:null,caddy:null,traefik:null,'hashicorp/http-echo':null,'kicbase/echo-server':null,'gcr.io/google-samples/hello-app':null};
+function isValid(img){const [r,t]=img.split(':');if(!(r in REPOS))return false;const tags=REPOS[r];return !t||!tags||tags.includes(t)}
+const base=img=>img.split(':')[0].split('/').pop();
+const nodeNames=()=>Array.from({length:S.nodes},(_,i)=>i?`minikube-m0${i+1}`:'minikube');
+function podStatus(p){
+  if(p.dieAt)return 'Terminating';
+  if(!S.running)return 'Stopped';
+  const a=Date.now()-p.born;
+  if(!isValid(p.image))return a<3000?'ErrImagePull':'ImagePullBackOff';
+  return a<1800?'ContainerCreating':'Running';
+}
+const live=d=>d.pods.filter(p=>!p.dieAt);
+function newPod(d,image,rs){
+  const names=nodeNames();const cnt=n=>Object.values(S.deps).reduce((a,x)=>a+x.pods.filter(p=>!p.dieAt&&p.node===n).length,0);
+  const node=names.sort((a,b)=>cnt(a)-cnt(b))[0];
+  d.pods.push({name:`${d.name}-${rs}-${r5()}`,image,rs,node,born:Date.now()});
+}
+function adjust(d,img,rs,want){
+  const good=live(d).filter(p=>p.rs===rs);
+  for(let i=good.length;i<want;i++)newPod(d,img,rs);
+  good.slice(want).forEach(p=>p.dieAt=Date.now()+1500);
+}
+function roll(d){
+  const cur=d.rev[d.rev.length-1];
+  if(isValid(cur.image)){adjust(d,cur.image,cur.rs,d.replicas);live(d).filter(p=>p.rs!==cur.rs).forEach(p=>p.dieAt=Date.now()+1500)}
+  else if(!live(d).some(p=>p.rs===cur.rs))newPod(d,cur.image,cur.rs);
+}
+function makeDep(name,image,replicas){
+  const d={name,container:base(image),replicas,pods:[],rev:[{image,rs:hash(image+Math.random())}],born:Date.now()};
+  S.deps[name]=d;roll(d);return d;
+}
+function setImage(d,img){d.rev.push({image:img,rs:hash(img+Math.random())});roll(d)}
+const curImg=d=>d.rev[d.rev.length-1].image;
+function scale(d,n){
+  d.replicas=n;const cur=d.rev[d.rev.length-1];
+  if(isValid(cur.image))adjust(d,cur.image,cur.rs,n);
+  else if(d.rev.length>1){const pv=d.rev[d.rev.length-2];adjust(d,pv.image,pv.rs,n)}
+}
+const ready=d=>live(d).filter(p=>podStatus(p)==='Running').length;
+
+/* ---------- terminal ---------- */
+const term=$('#term'),out=$('#out'),inp=$('#inp');
+function pr(t,c){const d=document.createElement('div');if(c)d.className=c;d.textContent=t;out.appendChild(d);term.scrollTop=term.scrollHeight}
+let totalErr=0,mErr=0;
+function er(t){totalErr++;mErr++;pr(t,'e')}
+function tbl(rows){const w=rows[0].map((_,i)=>Math.max(...rows.map(r=>String(r[i]).length)));rows.forEach(r=>pr(r.map((c,i)=>String(c).padEnd(w[i])).join('   ').trimEnd()))}
+const age=t=>{const s=Math.max(1,Math.round((Date.now()-t)/1000));return s<120?s+'s':Math.round(s/60)+'m'};
+const VAL=new Set(['replicas','image','type','port','target-port','driver','cpus','memory','nodes','kubernetes-version','container-runtime']);
+const SV=new Set(['f','n','o','l','p']);
+function parse(a){const pos=[],f={};for(let i=0;i<a.length;i++){const x=a[i];
+  if(x.startsWith('--')){const [k,v]=x.slice(2).split('=');if(v!==undefined)f[k]=v;else if(VAL.has(k)&&a[i+1]&&!a[i+1].startsWith('-'))f[k]=a[++i];else f[k]=true}
+  else if(x.startsWith('-')&&x.length===2){const k=x[1];if(SV.has(k)&&a[i+1])f[k]=a[++i];else f[k]=true}
+  else pos.push(x)}return {pos,f}}
+const normRes=r=>({deployment:'deploy',deployments:'deploy',deploy:'deploy',pod:'pod',pods:'pod',po:'pod',service:'svc',services:'svc',svc:'svc',node:'node',nodes:'node',no:'node',all:'all',ns:'ns',namespace:'ns',namespaces:'ns'})[r];
+const splitRes=(pos,i)=>{let r=pos[i],n=pos[i+1];if(r&&r.includes('/'))[r,n]=r.split('/');return [normRes(r),n]};
+
+/* ---------- ayuda ---------- */
+function help(){
+  pr(`minikube start [--driver=docker] [--cpus=N] [--memory=MB] [--nodes=N]
+minikube status | stop | delete | ip | node add
+minikube addons list | enable X | disable X
+minikube service NOMBRE [--url] | dashboard | tunnel
+
+kubectl get nodes|pods|deploy|svc|all [-A]
+kubectl create deployment NOMBRE --image=IMG [--replicas=N]
+kubectl expose deployment NOMBRE --port=80 --type=NodePort
+kubectl scale deployment NOMBRE --replicas=N
+kubectl set image deployment/NOMBRE CONTENEDOR=IMG
+kubectl rollout status|history|undo|restart deployment/NOMBRE
+kubectl describe pod NOMBRE | kubectl logs NOMBRE
+kubectl delete pod|deployment|svc NOMBRE
+kubectl apply -f web.yaml      (usa la pestaña web.yaml)
+kubectl top pods | cluster-info | version
+clear`,'m')}
+
+/* ---------- minikube ---------- */
+async function lines(arr,ms=350){for(const l of arr){pr(l);await sleep(ms)}}
+async function mk(args){
+  const {pos,f}=parse(args);const v=pos[0];
+  if(!v){pr('minikube provisiona y administra clústeres locales de Kubernetes. Prueba: minikube start','m');return}
+  if(v==='start'){
+    const drv=f.driver||'docker';
+    if(!['docker','podman','virtualbox','kvm2','hyperv','qemu','vmware','none'].includes(drv))return er(`❌  Exiting due to DRV_UNSUPPORTED: The driver '${drv}' is not supported.\n💡  Drivers válidos: docker, podman, virtualbox, kvm2, hyperv, qemu, vmware.`);
+    const cpus=f.cpus===undefined?2:parseInt(f.cpus);
+    if(isNaN(cpus)||cpus<2)return er(`❌  Exiting due to RSRC_INSUFFICIENT_CORES: Requested cpu count ${f.cpus} is less than the minimum allowed of 2`);
+    let mem=4000;if(f.memory!==undefined){const m=String(f.memory).toLowerCase();mem=/g(b)?$/.test(m)?parseFloat(m)*1024:parseFloat(m)}
+    if(isNaN(mem)||mem<1800)return er(`❌  Exiting due to RSRC_INSUFFICIENT_REQ_MEMORY: Requested memory allocation ${f.memory} is less than the usable minimum of 1800MB`);
+    const nodes=f.nodes===undefined?1:parseInt(f.nodes);
+    if(isNaN(nodes)||nodes<1||nodes>4)return er('❌  El simulador acepta entre 1 y 4 nodos (--nodes=1..4).');
+    if(f['kubernetes-version']&&!/^v?\d+\.\d+(\.\d+)?$/.test(f['kubernetes-version']))return er(`❌  Exiting due to K8S_INVALID_VERSION: versión inválida "${f['kubernetes-version']}". Ejemplo: v1.34.0`);
+    if(S.running){await lines(['🏃  Updating the running '+S.driver+' "minikube" container ...','🏄  Done! kubectl is now configured to use "minikube" cluster'],250);return}
+    const kv=f['kubernetes-version']||'';
+    await lines([
+      `😄  minikube on your machine`,
+      `✨  Using the ${drv} driver based on ${f.driver?'user configuration':'existing profile'}`,
+      `📌  Using Docker/containerd runtime`,
+      `👍  Starting "minikube" primary control-plane node in "minikube" cluster`,
+      `🚜  Pulling base image ...`,
+      `🔥  Creating ${drv} container (CPUs=${cpus}, Memory=${Math.round(mem)}MB) ...`,
+      `🐳  Preparing Kubernetes${kv?' '+kv:''} ...`,
+      `    ▪ Generating certificates and keys ...`,
+      `    ▪ Booting up control plane ...`,
+      `🔎  Verifying Kubernetes components...`,
+      `🌟  Enabled addons: default-storageclass, storage-provisioner`],380);
+    if(!S.ever||S.nodes===1)S.nodes=nodes;
+    if(nodes>1)pr(`👍  Starting "minikube-m0X" worker nodes (${nodes-1}) ...`);
+    S.running=true;S.ever=true;S.driver=drv;S.since=Date.now();
+    Object.values(S.deps).forEach(d=>d.pods.forEach(p=>p.born=Date.now()));
+    pr('🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default','c');return}
+  if(v==='stop'){
+    if(!S.running){pr('🛑  Nothing to stop: el nodo "minikube" ya está detenido.');return}
+    await lines(['✋  Stopping node "minikube"  ...','🛑  1 node stopped.'],500);S.running=false;S.did.stop=true;return}
+  if(v==='delete'){
+    await lines(['🔥  Deleting "minikube" in '+(S.driver||'docker')+' ...','💀  Removed all traces of the "minikube" cluster.'],450);
+    const d=S.did;S=S0();S.did=d;S.did.deleted=true;return}
+  if(v==='status'){
+    if(!S.ever)return er('🤷  Profile "minikube" not found. Run "minikube profile list" to view all profiles.\n👉  To start a cluster, run: "minikube start"');
+    const s=S.running?'Running':'Stopped';
+    pr(`minikube\ntype: Control Plane\nhost: ${s}\nkubelet: ${s}\napiserver: ${s}\nkubeconfig: ${S.running?'Configured':'Stopped'}`);return}
+  if(v==='ip'){if(!S.running)return er('❌  minikube is not running');pr('192.168.49.2');return}
+  if(v==='node'&&pos[1]==='add'){
+    if(!S.running)return er('❌  El clúster no está corriendo. Usa minikube start.');
+    if(S.nodes>=4)return er('❌  El simulador permite hasta 4 nodos.');
+    const n=`m0${S.nodes+1}`;await lines([`😄  Adding node ${n} to cluster minikube`,`👍  Starting "minikube-${n}" worker node in "minikube" cluster`,`🎉  Successfully added ${n} to minikube!`],500);S.nodes++;S.did.nodeAdd=true;return}
+  if(v==='addons'){
+    const KNOWN=['dashboard','ingress','metrics-server','registry','ingress-dns','metallb','storage-provisioner','default-storageclass','volumesnapshots'];
+    const sub=pos[1];
+    if(sub==='list'){tbl([['ADDON NAME','STATUS'],...KNOWN.map(a=>[a,S.addons.has(a)?'enabled ✅':'disabled'])]);return}
+    if(sub==='enable'||sub==='disable'){
+      const a=pos[2];if(!a)return er('❌ Falta el nombre del addon. Prueba: minikube addons list');
+      if(!KNOWN.includes(a))return er(`❌  Exiting due to MK_USAGE: addon '${a}' is not a valid addon packaged with minikube.`);
+      if(!S.running)return er('❌  Exiting due to GUEST_STATUS: minikube is not running. Usa minikube start.');
+      if(sub==='enable'){pr(`💡  ${a} is an addon maintained by the Kubernetes community.`);await sleep(500);S.addons.add(a);pr(`🌟  The '${a}' addon is enabled`,'c')}
+      else{S.addons.delete(a);pr(`🌑  The '${a}' addon is disabled`)}
+      return}
+    return er('Uso: minikube addons list | enable NOMBRE | disable NOMBRE')}
+  if(v==='dashboard'){
+    if(!S.running)return er('❌  minikube is not running.');
+    await lines(['🔌  Enabling dashboard ...','🤔  Verifying dashboard health ...','🚀  Launching proxy ...','🎉  Opening http://127.0.0.1:41245/api/v1/namespaces/kubernetes-dashboard/services/... in your default browser...'],500);
+    S.addons.add('dashboard');S.addons.add('metrics-server');S.did.dashboard=true;return}
+  if(v==='service'){
+    if(!S.running)return er('❌  minikube is not running.');
+    const n=pos[1];const s=S.svcs[n];
+    if(!n)return er('Uso: minikube service NOMBRE [--url]');
+    if(!s)return er(`❌  Exiting due to SVC_NOT_FOUND: Service '${n}' was not found in 'default' namespace.\n💡  Primero expón el deployment: kubectl expose deployment ${n} --port=80 --type=NodePort`);
+    if(s.type==='ClusterIP')return er(`❌  Exiting due to SVC_NOT_FOUND: el Service '${n}' es ClusterIP y no tiene URL externa.\n💡  Necesita type NodePort o LoadBalancer.`);
+    S.did.service=true;
+    if(f.url){pr(`http://127.0.0.1:${s.nodePort+10000}`)}
+    else{pr(`|-----------|------|-------------|---------------------------|\n| NAMESPACE | NAME | TARGET PORT |            URL            |\n| default   | ${n} | ${s.port}           | http://192.168.49.2:${s.nodePort} |\n|-----------|------|-------------|---------------------------|`);
+      pr('🏃  Starting tunnel for service '+n+'.');pr(`🎉  Opening service default/${n} in default browser...`);pr('❗  Because you are using a Docker driver, the terminal needs to be open to run it.','w')}
+    return}
+  if(v==='tunnel'){
+    if(!S.running)return er('❌  minikube is not running.');
+    S.tunnel=true;S.did.tunnel=true;pr('✅  Tunnel successfully started\n📌  Los Services LoadBalancer ahora reciben EXTERNAL-IP 127.0.0.1');return}
+  if(v==='version'){pr('minikube version: (simulador)');return}
+  er(`Unknown command "${v}" for "minikube". Escribe help.`)
+}
+
+/* ---------- kubectl ---------- */
+const KS=[['coredns-66bc5c9577-x7k2p','1/1'],['etcd-minikube','1/1'],['kube-apiserver-minikube','1/1'],['kube-controller-manager-minikube','1/1'],['kube-proxy-q8h5n','1/1'],['kube-scheduler-minikube','1/1'],['storage-provisioner','1/1']];
+function parseYaml(txt){
+  const docs=txt.split(/^---\s*$/m).map(s=>s.trim()).filter(Boolean);const res=[];
+  for(const d of docs){
+    const kind=(d.match(/^kind:\s*(\w+)/m)||[])[1];
+    if(!kind)throw new Error('error: error validating "web.yaml": missing "kind" field');
+    if(!/^apiVersion:/m.test(d))throw new Error('error: error validating "web.yaml": missing "apiVersion" field');
+    const name=(d.match(/metadata:\s*\n\s+name:\s*(\S+)/)||[])[1];
+    if(!name)throw new Error(`error: error validating "web.yaml": ${kind} sin metadata.name`);
+    if(kind==='Deployment'){
+      const image=(d.match(/image:\s*(\S+)/)||[])[1];if(!image)throw new Error('error: error validating "web.yaml": falta spec.template.spec.containers[0].image');
+      const rep=(d.match(/replicas:\s*(\S+)/)||[])[1];const replicas=rep===undefined?1:parseInt(rep);
+      if(isNaN(replicas)||replicas<0)throw new Error(`error: error validating "web.yaml": replicas inválido "${rep}"`);
+      res.push({kind,name,image,replicas,container:((d.match(/-\s*name:\s*(\S+)/)||[])[1])||base(image)})}
+    else if(kind==='Service'){
+      const type=(d.match(/^\s*type:\s*(\w+)/m)||[])[1]||'ClusterIP';
+      if(!['ClusterIP','NodePort','LoadBalancer'].includes(type))throw new Error(`The Service "${name}" is invalid: spec.type: Unsupported value: "${type}"`);
+      const port=parseInt((d.match(/^\s*-?\s*port:\s*(\d+)/m)||[])[1]);if(!port)throw new Error('error: error validating "web.yaml": falta spec.ports[0].port');
+      res.push({kind,name,type,port})}
+    else throw new Error(`error: el simulador solo entiende Deployment y Service (recibió ${kind})`)}
+  return res}
+function mkSvc(name,type,port){const prev=S.svcs[name];S.svcs[name]={name,type,port,ip:prev?prev.ip:`10.96.${Math.floor(Math.random()*200)+10}.${Math.floor(Math.random()*240)+5}`,nodePort:type==='ClusterIP'?0:(prev&&prev.nodePort)||30000+Math.floor(Math.random()*2700),born:prev?prev.born:Date.now()}}
+function kc(args){
+  const {pos,f}=parse(args);const v=pos[0];
+  if(v==='version'){pr('Client Version: simulador\nServer Version: '+(S.running?'v1.34.0':'(sin conexión)'));return}
+  if(!v)return pr('kubectl controla el clúster de Kubernetes. Prueba: kubectl get pods','m');
+  if(!S.running){
+    if(!S.ever)er('E: The connection to the server localhost:8080 was refused - did you specify the right host or port?\n💡  Todavía no existe ningún clúster. ¿Ya hiciste minikube start?');
+    else er('E: Unable to connect to the server: dial tcp 192.168.49.2:8443: connect: connection refused\n💡  El clúster está detenido. Usa minikube start.');return}
+  const depOf=n=>S.deps[n];
+  switch(v){
+  case 'cluster-info':pr('Kubernetes control plane is running at https://192.168.49.2:8443\nCoreDNS is running at https://192.168.49.2:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy');return;
+  case 'get':{
+    const [r,n]=splitRes(pos,1);
+    if(!r)return er(`error: the server doesn't have a resource type "${pos[1]||''}"\n💡  Prueba: nodes, pods, deploy, svc, all`);
+    const all=f.A||f['all-namespaces'];
+    if(r==='node'){S.did.getNodes=true;tbl([['NAME','STATUS','ROLES','AGE','VERSION'],...nodeNames().map((x,i)=>[x,'Ready',i?'<none>':'control-plane',age(S.since),'v1.34.0'])]);return}
+    if(r==='ns'){tbl([['NAME','STATUS','AGE'],['default','Active','5m'],['kube-system','Active','5m'],['kube-public','Active','5m'],['kube-node-lease','Active','5m']]);return}
+    const podRows=()=>{const rows=[];Object.values(S.deps).forEach(d=>live(d).concat(d.pods.filter(p=>p.dieAt)).forEach(p=>rows.push([all?'default':null,p.name,podStatus(p)==='Running'?'1/1':'0/1',podStatus(p),0,age(p.born)])));return rows};
+    if(r==='pod'){
+      let rows=podRows();if(n)rows=rows.filter(x=>x[1]===n);
+      const extra=[];
+      if(all){KS.forEach(k=>extra.push(['kube-system',k[0],k[1],'Running',0,age(S.since)]));
+        if(S.addons.has('metrics-server'))extra.push(['kube-system','metrics-server-7fbb699795-m4t2c','1/1','Running',0,'1m']);
+        if(S.addons.has('dashboard'))extra.push(['kubernetes-dashboard','kubernetes-dashboard-855c9754f9-9wzpb','1/1','Running',0,'1m']);
+        if(S.addons.has('ingress'))extra.push(['ingress-nginx','ingress-nginx-controller-9cc49f96f-lq8xz','1/1','Running',0,'1m'])}
+      const all2=[...extra,...rows];
+      if(n&&!rows.length)return er(`Error from server (NotFound): pods "${n}" not found`);
+      if(!all2.length||(!all&&!rows.length)){pr('No resources found in default namespace.');return}
+      const h=all?['NAMESPACE','NAME','READY','STATUS','RESTARTS','AGE']:['NAME','READY','STATUS','RESTARTS','AGE'];
+      tbl([h,...(all?all2:rows).map(x=>all?x:x.slice(1))]);return}
+    if(r==='deploy'){
+      const ds=Object.values(S.deps).filter(d=>!n||d.name===n);
+      if(n&&!ds.length)return er(`Error from server (NotFound): deployments.apps "${n}" not found`);
+      if(!ds.length){pr('No resources found in default namespace.');return}
+      tbl([['NAME','READY','UP-TO-DATE','AVAILABLE','AGE'],...ds.map(d=>[d.name,`${ready(d)}/${d.replicas}`,live(d).filter(p=>p.rs===d.rev[d.rev.length-1].rs).length,ready(d),age(d.born)])]);return}
+    const svcRows=()=>[['kubernetes','ClusterIP','10.96.0.1','<none>','443/TCP',age(S.since)],...Object.values(S.svcs).map(s=>[s.name,s.type,s.ip,s.type==='LoadBalancer'?(S.tunnel?'127.0.0.1':'<pending>'):'<none>',s.type==='ClusterIP'?`${s.port}/TCP`:`${s.port}:${s.nodePort}/TCP`,age(s.born)])];
+    if(r==='svc'){const rows=svcRows().filter(x=>!n||x[0]===n);if(n&&!rows.length)return er(`Error from server (NotFound): services "${n}" not found`);tbl([['NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE'],...rows]);return}
+    if(r==='all'){
+      const rows=podRows();if(rows.length){tbl([['NAME','READY','STATUS','RESTARTS','AGE'],...rows.map(x=>x.slice(1).map((c,i)=>i===0?'pod/'+c:c))]);pr('')}
+      tbl([['NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE'],...svcRows().map(x=>['service/'+x[0],...x.slice(1)])]);
+      const ds=Object.values(S.deps);if(ds.length){pr('');tbl([['NAME','READY','UP-TO-DATE','AVAILABLE','AGE'],...ds.map(d=>['deployment.apps/'+d.name,`${ready(d)}/${d.replicas}`,live(d).filter(p=>p.rs===d.rev[d.rev.length-1].rs).length,ready(d),age(d.born)])])}
+      return}
+    return}
+  case 'create':{
+    if(pos[1]!=='deployment'&&pos[1]!=='deploy')return er('error: el simulador solo soporta: kubectl create deployment NOMBRE --image=IMAGEN');
+    const n=pos[2];if(!n)return er('error: exactly NAME is required, got 0');
+    if(!f.image||f.image===true)return er('error: required flag(s) "image" not set\n💡  Ejemplo: kubectl create deployment web --image=nginx:1.27');
+    if(S.deps[n])return er(`error: failed to create deployment: deployments.apps "${n}" already exists`);
+    const reps=f.replicas===undefined?1:parseInt(f.replicas);if(isNaN(reps)||reps<0)return er('error: --replicas inválido');
+    makeDep(n,f.image,reps);pr(`deployment.apps/${n} created`);return}
+  case 'expose':{
+    const [r,n]=splitRes(pos,1);if(r!=='deploy')return er('error: el simulador solo soporta: kubectl expose deployment NOMBRE --port=80 [--type=NodePort]');
+    if(!n||!S.deps[n])return er(`Error from server (NotFound): deployments.apps "${n||''}" not found`);
+    if(!f.port||f.port===true)return er('error: couldn\'t find port via --port flag or introspection');
+    const type=f.type||'ClusterIP';if(!['ClusterIP','NodePort','LoadBalancer'].includes(type))return er(`The Service "${n}" is invalid: spec.type: Unsupported value: "${type}": supported values: "ClusterIP", "LoadBalancer", "NodePort"`);
+    if(S.svcs[n])return er(`Error from server (AlreadyExists): services "${n}" already exists`);
+    mkSvc(n,type,parseInt(f.port));pr(`service/${n} exposed`);return}
+  case 'scale':{
+    let r,n;if(pos[1]&&pos[1].includes('/')||pos[1]){[r,n]=splitRes(pos,1)}
+    if(r!=='deploy')return er('error: el simulador solo soporta: kubectl scale deployment NOMBRE --replicas=N');
+    const d=S.deps[n];if(!d)return er(`Error from server (NotFound): deployments.apps "${n||''}" not found`);
+    if(f.replicas===undefined||f.replicas===true)return er('error: required flag(s) "replicas" not set');
+    const k=parseInt(f.replicas);if(isNaN(k)||k<0)return er('error: --replicas debe ser un entero ≥ 0');if(k>12)return er('💡  El simulador permite hasta 12 réplicas (tu RAM te lo agradecerá).');
+    scale(d,k);pr(`deployment.apps/${n} scaled`);return}
+  case 'set':{
+    if(pos[1]!=='image')return er('error: el simulador solo soporta: kubectl set image deployment/NOMBRE CONTENEDOR=IMAGEN');
+    const [r,n]=splitRes(pos,2);const d=S.deps[n];if(r!=='deploy'||!d)return er(`Error from server (NotFound): deployments.apps "${n||''}" not found`);
+    const asg=pos.slice(2).find(x=>x.includes('='));if(!asg||!asg.includes('='))return er('error: at least one image update is required\n💡  Formato: CONTENEDOR=IMAGEN (ej. nginx=nginx:1.28)');
+    const [c,img]=asg.split('=');if(c!=='*'&&c!==d.container)return er(`error: unable to find container named "${c}"\n💡  El contenedor de este deployment se llama "${d.container}".`);
+    if(img===curImg(d))return pr(`deployment.apps/${n} image updated (sin cambios)`);
+    setImage(d,img);pr(`deployment.apps/${n} image updated`);return}
+  case 'rollout':{
+    const sub=pos[1];const [r,n]=splitRes(pos,2);const d=S.deps[n];
+    if(!['status','history','undo','restart'].includes(sub))return er('Uso: kubectl rollout status|history|undo|restart deployment/NOMBRE');
+    if(r!=='deploy'||!d)return er(`Error from server (NotFound): deployments.apps "${n||''}" not found`);
+    if(sub==='status'){
+      const cur=d.rev[d.rev.length-1];const up=live(d).filter(p=>p.rs===cur.rs);
+      if(isValid(cur.image)&&up.length===d.replicas&&ready(d)===d.replicas&&live(d).length===d.replicas)pr(`deployment "${n}" successfully rolled out`,'c');
+      else{pr(`Waiting for deployment "${n}" rollout to finish: ${up.filter(p=>podStatus(p)==='Running').length} out of ${d.replicas} new replicas have been updated...`);
+        if(!isValid(cur.image))pr('^C  (el rollout no termina: hay pods que no arrancan. ¿Qué dice kubectl get pods?)','w');}
+      return}
+    if(sub==='history'){tbl([['REVISION','CHANGE-CAUSE'],...d.rev.map((x,i)=>[i+1,'<none>'])]);pr(`\n(imagen actual: ${curImg(d)})`,'m');return}
+    if(sub==='undo'){
+      if(d.rev.length<2)return er(`error: no rollout history found for deployment "${n}"`);
+      d.rev.pop();roll(d);S.did.undo=true;pr(`deployment.apps/${n} rolled back`);return}
+    if(sub==='restart'){const cur=d.rev[d.rev.length-1];d.rev[d.rev.length-1]={image:cur.image,rs:hash(cur.image+Math.random())};roll(d);pr(`deployment.apps/${n} restarted`);return}
+    return}
+  case 'delete':{
+    const [r,n]=splitRes(pos,1);
+    if(!r||!n)return er('error: Uso: kubectl delete pod|deployment|svc NOMBRE');
+    if(r==='pod'){
+      for(const d of Object.values(S.deps)){const p=live(d).find(x=>x.name===n);if(p){p.dieAt=Date.now()+700;
+        pr(`pod "${n}" deleted`);
+        setTimeout(()=>{if(S.deps[d.name]===d){const nw={name:`${d.name}-${p.rs}-${r5()}`,image:p.image,rs:p.rs,node:p.node,born:Date.now()};d.pods.push(nw)}},900);
+        S.did.deletePod=true;return}}
+      return er(`Error from server (NotFound): pods "${n}" not found`)}
+    if(r==='deploy'){const d=S.deps[n];if(!d)return er(`Error from server (NotFound): deployments.apps "${n}" not found`);d.pods.forEach(p=>p.dieAt=Date.now()+1200);delete S.deps[n];pr(`deployment.apps "${n}" deleted`);return}
+    if(r==='svc'){if(!S.svcs[n])return er(`Error from server (NotFound): services "${n}" not found`);delete S.svcs[n];pr(`service "${n}" deleted`);return}
+    return er('error: el simulador soporta delete de pod, deployment y svc')}
+  case 'describe':{
+    const [r,n]=splitRes(pos,1);
+    if(r==='pod'){
+      let p,d;for(const x of Object.values(S.deps)){const q=x.pods.find(y=>y.name===n);if(q){p=q;d=x}}
+      if(!p)return er(`Error from server (NotFound): pods "${n||''}" not found`);
+      const st=podStatus(p),bad=!isValid(p.image);S.did.describe=true;
+      const tagmiss=p.image.split('/').length===1&&(p.image.split(':')[0] in REPOS);
+      pr(`Name:         ${p.name}\nNamespace:    default\nNode:         ${p.node}/192.168.49.2\nStatus:       ${bad?'Pending':'Running'}\nImage:        ${p.image}\nState:        ${bad?'Waiting ('+st+')':'Running'}\nEvents:\n  Type     Reason     Message\n  ----     ------     -------\n  Normal   Scheduled  Successfully assigned default/${p.name} to ${p.node}\n  Normal   Pulling    Pulling image "${p.image}"`);
+      if(bad){pr(`  Warning  Failed     Failed to pull image "${p.image}": ${tagmiss?'manifest for '+p.image+' not found: manifest unknown':'pull access denied, repository does not exist or may require authentication'}\n  Warning  Failed     Error: ErrImagePull\n  Normal   BackOff    Back-off pulling image "${p.image}"\n  Warning  Failed     Error: ImagePullBackOff`,'w')}
+      else pr(`  Normal   Pulled     Successfully pulled image "${p.image}"\n  Normal   Created    Created container ${d.container}\n  Normal   Started    Started container ${d.container}`);
+      return}
+    if(r==='deploy'){const d=S.deps[n];if(!d)return er(`Error from server (NotFound): deployments.apps "${n||''}" not found`);
+      pr(`Name:               ${d.name}\nReplicas:           ${d.replicas} desired | ${live(d).length} total | ${ready(d)} available\nStrategy:           RollingUpdate (25% max unavailable, 25% max surge)\nContainer:          ${d.container}\n  Image:            ${curImg(d)}\nRevision:           ${d.rev.length}`);return}
+    return er('error: el simulador soporta describe pod|deployment NOMBRE')}
+  case 'logs':{
+    const n=pos[1];let p;for(const x of Object.values(S.deps)){const q=x.pods.find(y=>y.name===n);if(q)p=q}
+    if(!p)return er(`Error from server (NotFound): pods "${n||''}" not found`);
+    if(!isValid(p.image))return er(`Error from server (BadRequest): container "${base(p.image)}" in pod "${p.name}" is waiting to start: trying and failing to pull image`);
+    S.did.logs=true;pr('/docker-entrypoint.sh: Configuration complete; ready for start up\n10.244.0.1 - - "GET / HTTP/1.1" 200 615\n10.244.0.1 - - "GET /favicon.ico HTTP/1.1" 404 153');return}
+  case 'top':{
+    if(!S.addons.has('metrics-server'))return er('error: Metrics API not available\n💡  Activa el addon: minikube addons enable metrics-server');
+    const rows=[];Object.values(S.deps).forEach(d=>live(d).forEach(p=>rows.push([p.name,Math.floor(Math.random()*8)+1+'m',Math.floor(Math.random()*20)+6+'Mi'])));
+    if(!rows.length)return pr('No resources found in default namespace.');S.did.top=true;tbl([['NAME','CPU(cores)','MEMORY(bytes)'],...rows]);return}
+  case 'apply':{
+    if(f.f!=='web.yaml')return er(f.f&&f.f!==true?`error: the path "${f.f}" does not exist\n💡  En el simulador el archivo se llama web.yaml (pestaña web.yaml).`:'error: must specify one of -f and -k');
+    let res;try{res=parseYaml($('#yaml').value)}catch(e){return er(e.message)}
+    for(const x of res){
+      if(x.kind==='Deployment'){
+        const d=S.deps[x.name];
+        if(!d){makeDep(x.name,x.image,x.replicas);S.deps[x.name].container=x.container;pr(`deployment.apps/${x.name} created`)}
+        else{let ch=false;if(d.replicas!==x.replicas){scale(d,x.replicas);ch=true}if(x.image!==curImg(d)){setImage(d,x.image);ch=true}pr(`deployment.apps/${x.name} ${ch?'configured':'unchanged'}`)}}
+      else{const s=S.svcs[x.name];if(!s){mkSvc(x.name,x.type,x.port);pr(`service/${x.name} created`)}
+        else if(s.type!==x.type||s.port!==x.port){mkSvc(x.name,x.type,x.port);pr(`service/${x.name} configured`)}else pr(`service/${x.name} unchanged`)}}
+    S.did.apply=true;return}
+  case 'config':pr('minikube');return;
+  }
+  er(`error: unknown command "${v}" for "kubectl"\n💡  Escribe help para ver los comandos del simulador.`)
+}
+function dk(a){
+  if(a[0]==='ps'){if(S.running&&S.driver==='docker')tbl([['CONTAINER ID','IMAGE','STATUS','NAMES'],['3f2a9c1d7b0e','gcr.io/k8s-minikube/kicbase','Up 5 minutes','minikube']]);else pr('CONTAINER ID   IMAGE   STATUS   NAMES');return}
+  pr('docker: en este simulador solo existe "docker ps". El foco es Kubernetes 😉','m')}
+
+/* ---------- misiones ---------- */
+const MS=[
+ {t:'Arranca el clúster',d:'Arma tu primer script: crea el clúster local con Minikube usando Docker como driver y pulsa ▶ Ejecutar.',h:['Arrastra el bloque azul «iniciar clúster» al área de script.','Deja driver = docker, CPUs = 2 y memoria = 4000, y pulsa ▶ Ejecutar bloques.'],ck:()=>S.running},
+ {t:'¿Está listo el nodo?',d:'Añade un bloque para comprobar que el nodo aparece como Ready.',h:['Busca el bloque naranja «ver».','Elige «nodes» en el desplegable y ejecuta.'],ck:()=>S.running&&S.did.getNodes},
+ {t:'Primer despliegue',d:'Crea un Deployment llamado web con la imagen nginx:1.27 y espera a que su pod esté Running.',h:['Bloque morado «crear deployment». Después, el amarillo «esperar pods Running».','nombre = web, imagen = nginx:1.27, réplicas = 1.'],ck:()=>{const d=S.deps.web;return d&&curImg(d).startsWith('nginx')&&ready(d)>=1}},
+ {t:'Ábrelo al mundo',d:'Expón web como Service de tipo NodePort en el puerto 80.',h:['Bloque morado «exponer».','nombre = web, puerto = 80, tipo = NodePort.'],ck:()=>S.svcs.web&&S.svcs.web.type==='NodePort'&&S.svcs.web.port===80},
+ {t:'Escala a 4 réplicas',d:'Hay mucho tráfico: pasa web a 4 réplicas y espera a que estén las 4 Running.',h:['Bloque morado «escalar» y luego «esperar pods Running».','escalar web a 4.'],ck:()=>{const d=S.deps.web;return d&&d.replicas===4&&ready(d)===4&&live(d).length===4}},
+ {t:'Actualización sin caída',d:'Despliega la versión nginx:1.28 con un rolling update y espera a que todos los pods sean nuevos.',h:['Bloque «actualizar imagen» y luego «esperar pods Running».','actualizar imagen de web a nginx:1.28.'],ck:()=>{const d=S.deps.web;return d&&curImg(d)==='nginx:1.28'&&ready(d)===4&&live(d).length===4&&live(d).every(p=>p.rs===d.rev[d.rev.length-1].rs)}},
+ {t:'🚨 ¡Despliegue roto!',d:'Un compañero acaba de subir una imagen mala a producción. Diagnostica qué pasa y recupera el servicio con 4 pods Running.',h:['Usa «ver pods» y «describir pod» con la opción «el que falla» para leer los eventos.','Hay un bloque morado para deshacer el último cambio del deployment.'],
+  on:()=>{const d=S.deps.web;if(!d)return;pr('🚨 [Equipo] "Acabo de hacer push de nginx:1.99, ¡debería funcionar!"','sys');setImage(d,'nginx:1.99');pr('deployment.apps/web image updated (hecho por tu compañero)','sys')},
+  ck:()=>{const d=S.deps.web;return d&&isValid(curImg(d))&&ready(d)===4&&live(d).length===4&&!live(d).some(p=>!isValid(p.image))}},
+ {t:'Autorreparación',d:'Borra uno de los pods de web y comprueba que Kubernetes lo recrea hasta volver a 4 Running.',h:['Bloque morado «borrar pod». Añade después «esperar pods Running».','Elige «primero» en el desplegable del pod.'],ck:()=>{const d=S.deps.web;return d&&S.did.deletePod&&ready(d)===4&&live(d).length===4}},
+ {t:'Activa observabilidad',d:'Habilita los addons metrics-server y dashboard.',h:['Bloques verdes: «activar addon» y «abrir dashboard».','activar addon metrics-server; abrir dashboard.'],ck:()=>S.addons.has('metrics-server')&&S.addons.has('dashboard')},
+ {t:'Infraestructura como código',d:'En la pestaña web.yaml cambia replicas a 6 y aplícalo con un bloque. Espera a que haya 6 Running.',h:['Edita web.yaml (pestaña de la derecha) y usa el bloque «aplicar web.yaml».','Después añade «esperar pods Running».'],ck:()=>{const d=S.deps.web;return d&&S.did.apply&&d.replicas===6&&ready(d)===6&&live(d).length===6}},
+ {t:'Cierra el laboratorio',d:'Misión final: detén el clúster sin borrar nada.',h:['Bloque azul «detener clúster».','Arrástralo y pulsa ▶ Ejecutar.'],ck:()=>S.ever&&!S.running&&S.did.stop&&S.deps.web}
+];
+let mi=0,hints=0,score=0,t0=0,started=false,skipArm=false,finished=false,results=[];
+function renderMission(){
+  $('#dots').innerHTML=MS.map((m,i)=>`<div class="dot ${results[i]==='ok'?'ok':results[i]==='sk'?'sk':i===mi?'on':''}">${i+1}</div>`).join('');
+  if(mi>=MS.length)return;
+  const m=MS[mi];$('#mt').textContent=m.t;$('#md').textContent=m.d;
+  $('#hints').innerHTML=m.h.slice(0,hints).map(h=>`<div class="hint">💡 ${h}</div>`).join('');
+  $('#bHint').disabled=hints>=m.h.length;$('#bSkip').textContent=skipArm?'¿Seguro? (0 pts)':'⏭ Saltar misión';
+  $('#sM').textContent=Math.min(mi+1,MS.length);$('#sP').textContent=score;
+}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
+function next(){hints=0;mErr=0;skipArm=false;mi++;if(mi>=MS.length){finish();return}renderMission();const m=MS[mi];if(m.on){const go=()=>{if(running)setTimeout(go,300);else m.on()};setTimeout(go,900)}}
+function complete(){
+  const pts=Math.max(20,100-hints*20-Math.min(30,mErr*5));score+=pts;results[mi]='ok';
+  toast(`✅ Misión ${mi+1} completada  +${pts} pts`);next();
+}
+function check(){if(finished||mi>=MS.length)return;try{if(MS[mi].ck())complete()}catch(e){}}
+$('#bHint').onclick=()=>{if(hints<MS[mi].h.length){hints++;renderMission()}};
+$('#bSkip').onclick=()=>{if(!skipArm){skipArm=true;renderMission();return}results[mi]='sk';toast('Misión saltada');next()};
+function fmt(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function finish(){
+  finished=true;renderMission();
+  const secs=Math.round((Date.now()-t0)/1000);
+  const rank=score>=1000?'Maestro/a de Kubernetes ☸️':score>=750?'Ingeniero/a DevOps 🚀':score>=450?'Aprendiz de pods 📦':'Sigue practicando 💪';
+  const nm=$('#player').value.trim()||'Jugador/a';
+  const f=$('#final');f.classList.add('on');
+  f.innerHTML=`<div class="kick">Misión completada</div><div class="big">${score} / 1100 pts</div><h2 style="margin:4px 0">${nm}: ${rank}</h2><p style="color:var(--muted)">Tiempo: ${fmt(Date.now()-t0)} · Comandos con error: ${totalErr} · Misiones saltadas: ${results.filter(x=>x==='sk').length}. El terminal sigue activo: prueba lo que quieras en modo libre (más nodos, otras imágenes, addons…).</p><button class="btn" id="again">Jugar de nuevo</button>`;
+  $('#again').onclick=resetAll;window.scrollTo({top:0,behavior:'smooth'});
+}
+function resetAll(){clearStack();S=S0();mi=0;hints=0;score=0;t0=0;started=false;skipArm=false;finished=false;results=[];totalErr=0;mErr=0;out.innerHTML='';$('#final').classList.remove('on');$('#yaml').value=YAML0;$('#sT').textContent='00:00';renderMission();render()}
+$('#reset').onclick=resetAll;
+
+/* ---------- ejecutar ---------- */
+let busy=false,hist=[],hi=0;
+async function run(line,fromInput){
+  line=line.trim();if(!line||busy)return;
+  pr('$ '+line,'p');hist.push(line);hi=hist.length;
+  if(!started){started=true;t0=Date.now()}
+  const a=line.split(/\s+/);let c=a[0];if(c==='k')c='kubectl';
+  busy=true;inp.disabled=true;
+  try{
+    if(c==='clear')out.innerHTML='';
+    else if(c==='help')help();
+    else if(c==='minikube')await mk(a.slice(1));
+    else if(c==='kubectl')kc(a.slice(1));
+    else if(c==='docker')dk(a.slice(1));
+    else if(/^kubec|^kubct|^minikub|^minkube/.test(c))er(`bash: ${c}: command not found\n💡  ¿Quisiste decir ${c.startsWith('mini')||c.startsWith('mink')?'minikube':'kubectl'}?`);
+    else er(`bash: ${c}: command not found\n💡  Escribe help para ver los comandos del simulador.`);
+  }catch(e){er('Error interno del simulador: '+e.message)}
+  busy=false;inp.disabled=false;if(fromInput)inp.focus();check();render();
+}
+inp.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){const v=inp.value;inp.value='';run(v,true)}
+  else if(e.key==='ArrowUp'){if(hi>0){hi--;inp.value=hist[hi];e.preventDefault()}}
+  else if(e.key==='ArrowDown'){if(hi<hist.length-1){hi++;inp.value=hist[hi]}else{hi=hist.length;inp.value=''}}
+});
+
+
+/* ---------- render del clúster ---------- */
+function render(){
+  const el=$('#cluster');
+  if(!S.ever){el.innerHTML='<div class="empty">☸️<br>Aún no hay clúster.<br>Ejecuta <b class="mono">minikube start</b> para crearlo.</div>';return}
+  const up=S.running;
+  let h=`<div><span class="pill ${up?'g':''}">${up?'● Running':'○ Stopped'}</span><span class="pill">driver: ${S.driver}</span><span class="pill">nodos: ${S.nodes}</span></div>`;
+  h+='<div class="sec">Nodos y pods</div><div class="nodes">';
+  nodeNames().forEach((n,i)=>{
+    const ps=[];Object.values(S.deps).forEach(d=>d.pods.forEach(p=>{if(p.node===n)ps.push([d,p])}));
+    h+=`<div class="node ${up?'up':'down'}"><h4><span>🖥️ ${n}</span><span style="color:var(--muted);font-weight:500">${i?'worker':'control-plane'}</span></h4><div class="pods">`;
+    h+=ps.map(([d,p])=>{const s=podStatus(p);return `<div class="pod ${s}" title="${p.name} · ${s}"><b>${d.name}</b>${p.image.split(':')[1]||'latest'}<br>${s==='ContainerCreating'?'creando…':s==='Terminating'?'cerrando':s==='ImagePullBackOff'?'PullBackOff':s==='ErrImagePull'?'ErrPull':s==='Stopped'?'detenido':'Running'}</div>`}).join('')||'<span style="color:var(--muted);font-size:12px">Sin pods</span>';
+    h+='</div></div>';
+  });
+  h+='</div>';
+  const ds=Object.values(S.deps);
+  if(ds.length){h+='<div class="sec">Deployments</div>';ds.forEach(d=>h+=`<span class="pill">${d.name} · ${curImg(d)} · ${ready(d)}/${d.replicas} listos · rev ${d.rev.length}</span>`)}
+  const ss=Object.values(S.svcs);
+  if(ss.length){h+='<div class="sec">Services</div>';ss.forEach(s=>h+=`<span class="pill">${s.name} · ${s.type} :${s.port}${s.nodePort?'→'+s.nodePort:''}</span>`)}
+  h+='<div class="sec">Addons</div>'+[...S.addons].map(a=>`<span class="pill g">${a}</span>`).join('');
+  el.innerHTML=h;
+  const dl=$('#dl-dep');const names=['web',...Object.keys(S.deps).filter(x=>x!=='web')];if(dl.dataset.n!==names.join()){dl.dataset.n=names.join();dl.innerHTML=names.map(n=>`<option value="${n}">`).join('')}
+  // limpiar pods muertos
+  Object.values(S.deps).forEach(d=>d.pods=d.pods.filter(p=>!p.dieAt||p.dieAt>Date.now()));
+}
+setInterval(()=>{if(started&&!finished)$('#sT').textContent=fmt(Date.now()-t0);render();check();$('#sP').textContent=score},400);
+
+/* ---------- pestañas, yaml, chuleta ---------- */
+const YAML0=`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.28
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: NodePort
+  selector:
+    app: web
+  ports:
+  - port: 80
+    targetPort: 80
+`;
+$('#yaml').value=YAML0;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===t.dataset.p))});
+/* ================= BLOQUES (estilo Scratch) ================= */
+const DEP={k:'dep',t:'txt',d:'web',w:78,list:'dl-dep'};
+const IMG=(k,d)=>({k,t:'txt',d,w:112,list:'dl-img'});
+const POD=k=>({k,t:'pod',d:'primero'});
+const B={
+ start:{cat:'c',g:'Clúster',l:['iniciar clúster · driver',{k:'driver',t:'sel',o:['docker','podman','virtualbox','kvm2','hyperv','vmware','qemu','none'],d:'docker'},'CPUs',{k:'cpus',t:'num',d:2,w:50},'memoria',{k:'mem',t:'num',d:4000,w:74},'MB · nodos',{k:'nodes',t:'num',d:1,w:46}],cmd:v=>`minikube start --driver=${v.driver} --cpus=${v.cpus} --memory=${v.mem} --nodes=${v.nodes}`},
+ nodeadd:{cat:'c',l:['añadir nodo al clúster'],cmd:()=>'minikube node add'},
+ status:{cat:'c',l:['estado del clúster'],cmd:()=>'minikube status'},
+ stop:{cat:'c',l:['detener clúster'],cmd:()=>'minikube stop'},
+ del:{cat:'c',l:['eliminar clúster'],cmd:()=>'minikube delete'},
+
+ create:{cat:'d',g:'Desplegar',l:['crear deployment',DEP,'imagen',IMG('img','nginx:1.27'),'réplicas',{k:'rep',t:'num',d:1,w:46}],cmd:v=>`kubectl create deployment ${v.dep} --image=${v.img} --replicas=${v.rep}`},
+ expose:{cat:'d',l:['exponer',DEP,'puerto',{k:'port',t:'num',d:80,w:56},'tipo',{k:'type',t:'sel',o:['NodePort','ClusterIP','LoadBalancer'],d:'NodePort'}],cmd:v=>`kubectl expose deployment ${v.dep} --port=${v.port} --type=${v.type}`},
+ scale:{cat:'d',l:['escalar',DEP,'a',{k:'rep',t:'num',d:4,w:46},'réplicas'],cmd:v=>`kubectl scale deployment ${v.dep} --replicas=${v.rep}`},
+ setimg:{cat:'d',l:['actualizar imagen de',DEP,'a',IMG('img','nginx:1.28')],cmd:v=>{const d=S.deps[v.dep];return `kubectl set image deployment/${v.dep} ${d?d.container:base(v.img)}=${v.img}`}},
+ undo:{cat:'d',l:['deshacer último cambio de',DEP],cmd:v=>`kubectl rollout undo deployment/${v.dep}`},
+ restart:{cat:'d',l:['reiniciar pods de',DEP],cmd:v=>`kubectl rollout restart deployment/${v.dep}`},
+ apply:{cat:'d',l:['aplicar web.yaml'],cmd:()=>'kubectl apply -f web.yaml'},
+ delpod:{cat:'d',l:['borrar pod',POD('pod')],cmd:v=>`kubectl delete pod ${podName(v.pod)}`},
+ deldep:{cat:'d',l:['borrar deployment',DEP],cmd:v=>`kubectl delete deployment ${v.dep}`},
+ delsvc:{cat:'d',l:['borrar service',DEP],cmd:v=>`kubectl delete svc ${v.dep}`},
+
+ get:{cat:'g',g:'Diagnóstico',l:['ver',{k:'res',t:'sel',o:['pods','nodes','deploy','svc','all','pods -A'],d:'pods'}],cmd:v=>`kubectl get ${v.res}`},
+ describe:{cat:'g',l:['describir pod',POD('pod')],cmd:v=>`kubectl describe pod ${podName(v.pod)}`},
+ logs:{cat:'g',l:['logs del pod',POD('pod')],cmd:v=>`kubectl logs ${podName(v.pod)}`},
+ rstatus:{cat:'g',l:['estado del despliegue de',DEP],cmd:v=>`kubectl rollout status deployment/${v.dep}`},
+ rhist:{cat:'g',l:['historial de',DEP],cmd:v=>`kubectl rollout history deployment/${v.dep}`},
+ top:{cat:'g',l:['consumo de recursos (top)'],cmd:()=>'kubectl top pods'},
+
+ addon:{cat:'a',g:'Addons y acceso',l:['activar addon',{k:'a',t:'sel',o:['metrics-server','dashboard','ingress','registry','metallb','ingress-dns'],d:'metrics-server'}],cmd:v=>`minikube addons enable ${v.a}`},
+ addoff:{cat:'a',l:['desactivar addon',{k:'a',t:'sel',o:['metrics-server','dashboard','ingress','registry','metallb','ingress-dns'],d:'ingress'}],cmd:v=>`minikube addons disable ${v.a}`},
+ dash:{cat:'a',l:['abrir dashboard'],cmd:()=>'minikube dashboard'},
+ url:{cat:'a',l:['obtener URL del service',DEP],cmd:v=>`minikube service ${v.dep} --url`},
+ tunnel:{cat:'a',l:['abrir túnel (LoadBalancer)'],cmd:()=>'minikube tunnel'},
+
+ waitpods:{cat:'w',g:'Control',l:['⏳ esperar a que los pods estén Running'],special:'waitpods'},
+ wait:{cat:'w',l:['⏱ esperar',{k:'s',t:'num',d:2,w:46},'segundos'],special:'wait'}
+};
+function allPods(){const r=[];Object.values(S.deps).forEach(d=>live(d).forEach(p=>r.push(p)));return r}
+function podName(v){
+  const ps=allPods();
+  if(v==='primero')return ps[0]?ps[0].name:'ninguno';
+  if(v==='último')return ps.length?ps[ps.length-1].name:'ninguno';
+  if(v==='el que falla'){const b=ps.find(p=>podStatus(p)!=='Running');return b?b.name:'ninguno'}
+  return v}
+const podOpts=cur=>{const o=['primero','último','el que falla',...allPods().map(p=>p.name)];if(cur&&!o.includes(cur))o.push(cur);return o};
+function refreshPod(sel){const cur=sel.value;sel.innerHTML='';podOpts(cur).forEach(o=>sel.add(new Option(o,o)));sel.value=cur}
+
+const stack=$('#stack'),scriptEl=$('#script'),pal=$('#pal'),dropHint=$('#dropHint');
+function mkBlock(type,vals,inPal){
+  const def=B[type],el=document.createElement('div');el.className='blk c-'+def.cat;el.dataset.t=type;
+  def.l.forEach(x=>{
+    if(typeof x==='string'){const sp=document.createElement('span');sp.textContent=x;el.appendChild(sp);return}
+    let f;
+    if(x.t==='sel'){f=document.createElement('select');x.o.forEach(o=>f.add(new Option(o,o)))}
+    else if(x.t==='pod'){f=document.createElement('select');podOpts().forEach(o=>f.add(new Option(o,o)));f.addEventListener('mousedown',()=>refreshPod(f));f.addEventListener('focus',()=>refreshPod(f))}
+    else{f=document.createElement('input');f.type=x.t==='num'?'number':'text';if(x.t==='num')f.min=0;if(x.list)f.setAttribute('list',x.list);f.autocomplete='off';f.spellcheck=false}
+    f.dataset.k=x.k;if(x.w)f.style.width=x.w+'px';
+    const v=vals&&vals[x.k]!==undefined?vals[x.k]:x.d;
+    if(x.t==='pod'){if(!podOpts().includes(v))f.add(new Option(v,v))}
+    f.value=v;f.addEventListener('input',()=>el.classList.remove('ok','bad'));f.addEventListener('change',()=>el.classList.remove('ok','bad'));
+    el.appendChild(f)});
+  if(!inPal){
+    const bt=document.createElement('span');bt.className='bt';
+    bt.innerHTML='<button class="mini" title="Ejecutar solo este bloque">▶</button><button class="mini" title="Quitar bloque">✕</button>';
+    const [r,x]=bt.children;
+    r.onclick=async()=>{if(running)return;running=true;stopFlag=false;await execBlock(el);running=false;setBtns()};
+    x.onclick=()=>{if(!running){el.remove();upd()}};
+    el.appendChild(bt)}
+  return el}
+function readVals(el){const v={};el.querySelectorAll('[data-k]').forEach(f=>v[f.dataset.k]=f.value);return v}
+function upd(){dropHint.style.display=stack.children.length?'none':'block'}
+function clearStack(){stack.innerHTML='';upd()}
+
+/* paleta */
+(function(){
+  let h='';const order=Object.keys(B);
+  order.forEach(k=>{if(B[k].g){const colors={c:'#4c97ff',d:'#9966ff',g:'#e6930a',a:'#3fa83f',w:'#c99a00'};h+=`<h4 style="color:${colors[B[k].cat]}">● ${B[k].g}</h4>`}h+=`<div data-slot="${k}"></div>`});
+  pal.innerHTML=h;order.forEach(k=>pal.querySelector(`[data-slot="${k}"]`).replaceWith(mkBlock(k,null,true)));
+})();
+
+/* arrastrar y soltar (pointer events: ratón y táctil) */
+let drag=null,ph=null;
+function insIndex(y){const kids=[...stack.children].filter(c=>c!==ph&&c.classList.contains('blk'));let i=0;for(;i<kids.length;i++){const r=kids[i].getBoundingClientRect();if(y<r.top+r.height/2)break}return {i,kids}}
+function placePh(x,y){
+  const r=scriptEl.getBoundingClientRect();const over=x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;scriptEl.classList.toggle('over',over);
+  if(!over){if(ph&&ph.parentNode)ph.remove();return false}
+  const {i,kids}=insIndex(y);if(!ph){ph=document.createElement('div');ph.className='ph'}
+  if(i>=kids.length)stack.appendChild(ph);else stack.insertBefore(ph,kids[i]);dropHint.style.display='none';return true}
+document.addEventListener('pointerdown',e=>{
+  if(e.button>0||running)return;
+  const b=e.target.closest('.blk');if(!b||b.classList.contains('ghost')||e.target.closest('input,select,button'))return;
+  drag={b,inPal:!!b.closest('#pal'),sx:e.clientX,sy:e.clientY,on:false,idx:[...stack.children].indexOf(b)};
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  if(!drag.on){
+    if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<5)return;
+    drag.on=true;const r=drag.b.getBoundingClientRect();
+    if(drag.inPal){drag.el=mkBlock(drag.b.dataset.t,null,false);drag.ox=24;drag.oy=18}
+    else{drag.el=drag.b;drag.ox=e.clientX-r.left;drag.oy=e.clientY-r.top;drag.b.remove()}
+    drag.el.classList.remove('ok','bad','cur');drag.el.classList.add('ghost');document.body.appendChild(drag.el);
+  }
+  drag.el.style.left=(e.clientX-drag.ox)+'px';drag.el.style.top=(e.clientY-drag.oy)+'px';
+  placePh(e.clientX,e.clientY);e.preventDefault();
+},{passive:false});
+function endDrag(e,cancel){
+  if(!drag)return;const d=drag;drag=null;
+  if(!d.on){ if(d.inPal&&!cancel){stack.appendChild(mkBlock(d.b.dataset.t,null,false));upd()} return}
+  scriptEl.classList.remove('over');
+  const el=d.el;el.classList.remove('ghost');el.style.left=el.style.top='';
+  const overScript=!cancel&&ph&&ph.parentNode===stack;
+  const pr_=pal.getBoundingClientRect();const overPal=e&&e.clientX>=pr_.left&&e.clientX<=pr_.right&&e.clientY>=pr_.top&&e.clientY<=pr_.bottom;
+  if(overScript){stack.insertBefore(el,ph)}
+  else if(!d.inPal&&!overPal){const kids=[...stack.children];if(d.idx>=kids.length)stack.appendChild(el);else stack.insertBefore(el,kids[d.idx])}
+  else el.remove();
+  if(ph&&ph.parentNode)ph.remove();ph=null;upd();
+}
+document.addEventListener('pointerup',e=>endDrag(e,false));
+document.addEventListener('pointercancel',e=>endDrag(e,true));
+
+/* ejecución */
+let running=false,stopFlag=false;
+function setBtns(){$('#bRun').disabled=running;$('#bStop').disabled=!running;document.querySelectorAll('.script .blk .mini').forEach(b=>b.disabled=running)}
+const allRunning=()=>Object.values(S.deps).every(d=>live(d).length===d.replicas&&ready(d)===d.replicas);
+async function execBlock(el){
+  el.classList.remove('ok','bad');el.classList.add('cur');el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  const t=el.dataset.t,def=B[t],v=readVals(el);let ok=true;
+  if(!started){started=true;t0=Date.now()}
+  if(def.special==='wait'){const s=Math.min(30,Math.max(0,parseFloat(v.s)||0));pr(`⏱ esperando ${s}s ...`,'m');await sleep(s*1000)}
+  else if(def.special==='waitpods'){
+    if(!S.running){er('⏳ No hay clúster en marcha: nada que esperar. ¿Ejecutaste «iniciar clúster»?');ok=false}
+    else{pr('⏳ esperando a que todos los pods estén Running ...','m');const t1=Date.now();
+      while(Date.now()-t1<15000&&!stopFlag&&!allRunning())await sleep(300);
+      if(allRunning())pr('✔ Todos los pods están Running','c');else if(!stopFlag){er('⏱ Tiempo agotado: hay pods que no llegan a Running.\n💡  Usa «ver pods» y «describir pod» para investigar.');ok=false}}}
+  else{const e0=totalErr;await run(def.cmd(v));ok=totalErr===e0;await sleep(250)}
+  el.classList.remove('cur');el.classList.add(ok?'ok':'bad');check();render();return ok}
+async function runScript(){
+  if(running)return;const blocks=[...stack.querySelectorAll('.blk')];
+  if(!blocks.length){toast('Arrastra al menos un bloque 🙂');return}
+  blocks.forEach(b=>b.classList.remove('ok','bad','cur'));running=true;stopFlag=false;setBtns();let failed=null;
+  for(const b of blocks){if(stopFlag)break;const ok=await execBlock(b);if(!ok){failed=b;break}await sleep(300)}
+  running=false;setBtns();
+  if(failed)toast('⛔ El pipeline se detuvo: revisa el bloque en rojo');else if(!stopFlag)toast('Script terminado');
+}
+$('#bRun').onclick=runScript;
+$('#bStop').onclick=()=>{stopFlag=true};
+$('#bClr').onclick=()=>{if(!running)clearStack()};
+$('#bEx').onclick=()=>{if(running)return;clearStack();
+  [['start',null],['waitpods',null],['create',{dep:'web',img:'nginx:1.27',rep:2}],['waitpods',null],['expose',null],['scale',{dep:'web',rep:4}],['waitpods',null],['get',{res:'all'}]].forEach(([t,v])=>stack.appendChild(mkBlock(t,v,false)));upd()};
+setBtns();upd();
+
+renderMission();render();
+</script>
+</body>
+</html>
